@@ -124,7 +124,8 @@ public class PGPerf implements Configurable {
     private static ComboPooledDataSource initDataSource() {
         ComboPooledDataSource cpds = new ComboPooledDataSource();
         try {
-            cpds.setDriverClass("com.clickhouse.ClickHouseDriver");
+            Class.forName("com.clickhouse.jdbc.ClickHouseDriver");
+            cpds.setDriverClass("com.clickhouse.jdbc.ClickHouseDriver");
             cpds.setJdbcUrl(CKHCONNECTIONSTRING);
             cpds.setUser(CKHUSERNAME);
             cpds.setPassword(CKHPASSWORD);
@@ -143,6 +144,7 @@ public class PGPerf implements Configurable {
             lg.LogError(DATEFORMAT.format(LocalDateTime.now()) + "\t"
                     + "Cannot connect to ClickHouse server!"
             );
+            e.printStackTrace();
         }
         return null;
     }

@@ -57,6 +57,7 @@ public class StatCollector
     private Connection openConnection() {
         Connection con=null;
         try {
+            Class.forName("org.postgresql.Driver");
             Properties props = new Properties();
             props.setProperty(OracleConnection.CONNECTION_PROPERTY_USER_NAME, dbUserName);
             props.setProperty(OracleConnection.CONNECTION_PROPERTY_PASSWORD, dbPassword);
