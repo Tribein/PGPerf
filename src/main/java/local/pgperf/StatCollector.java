@@ -94,7 +94,7 @@ public class StatCollector
             try {
                 switch (threadType) {
                     case THREADWAITS:
-                        WaitsCollector waits = new WaitsCollector(
+                        SessionsCollector waits = new SessionsCollector(
                                 con, 
                                 ckhQueue, 
                                 dbUniqueName, 

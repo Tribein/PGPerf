@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-public class WaitsCollector implements Configurable {
+public class SessionsCollector implements Configurable {
 
     private final SLF4JLogger lg;
     private final Connection con;
@@ -28,7 +28,7 @@ public class WaitsCollector implements Configurable {
         "select " +
             "coalesce(datname,'n/a') as datname, " +
             "pid, " +
-            "coalesce(leader_pid,0) as leader_pid, " +
+            "0/*coalesce(leader_pid,0)*/ as leader_pid, " +
             "coalesce((pg_blocking_pids(pid))[1],0) as blocked_by, " +
             "coalesce(trim(application_name),'n/a') as application_name, " +
             "coalesce(cast(client_addr as text),'n/a') as client_addr, " +
@@ -40,13 +40,13 @@ public class WaitsCollector implements Configurable {
             "coalesce(wait_event_type,'n/a') as wait_event_type, " +
             "coalesce(wait_event,'n/a') as wait_event, " +
             "coalesce(state,'n/a') as state, " +
-            "coalesce(query_id,0) as query_id, " +
+            "0/*coalesce(query_id,0)*/ as query_id, " +
             "backend_type, " +
             "coalesce(cast(cast(backend_xid as text) as bigint),0) as backend_xid, " +
             "coalesce(cast(cast(backend_xmin as text) as bigint),0) as backend_xmin " +
         "from pg_catalog.pg_stat_activity";
 
-    public WaitsCollector(Connection connection, BlockingQueue<PgCkhMsg> queue, String dbname, String dbhost, String connstr) {
+    public SessionsCollector(Connection connection, BlockingQueue<PgCkhMsg> queue, String dbname, String dbhost, String connstr) {
         ckhQueue                = queue;
         con                     = connection;
         dbConnectionString      = connstr;
