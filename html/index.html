@@ -1,0 +1,317 @@
+<html>
+  <head>
+	<meta charset="utf-8">
+	<link rel="stylesheet" href="include.css">
+	<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+	<script type="text/javascript" src="include.js"></script>
+	<script type="text/javascript">
+		google.charts.load('current', {'packages': ['corechart']});
+		google.charts.setOnLoadCallback(drawChart);
+		//
+        var ts;
+        var te;
+        var timeSpan1;
+        var timeSpan2;
+        var eventsChart;
+        var eventSessionsTable;
+        //--changable
+        var spanMinutes = 30;
+        var dbName = 'mydb';
+        var sessionsBlocked = 0;
+        var hostName = 'localhost';		
+		//
+		var arrWaits = {
+			"Timestamp":	{"id":0},
+			"Activity":		{"id":1, "style":"LimeGreen"},
+			"BufferPin":	{"id":2, "style":"Orange"},
+			"Client":		{"id":3, "style":"Moccasin"},
+			"Extension":	{"id":4, "style":"Sienna"},
+			"IO":			{"id":5, "style":"Blue"},
+			"IPC":			{"id":6, "style":"Silver"},
+			"Lock":			{"id":7, "style":"DarkRed"},
+			"LWLock":		{"id":8, "style":"Red"},
+			"Timeout":		{"id":9, "style":"MistyRose"},
+			"n/a":			{"id":10, "style":"Magenta"}
+		};
+		//
+		function preDraw() {
+			te = new Date();
+			ts = new Date(te.getTime() - 1000 * 60 * spanMinutes);
+			timeSpan1 = ts.getFullYear() + '-' +
+				("0" + (ts.getMonth() + 1)).slice(-2) + '-' + ("0" + ts.getDate()).slice(-2)
+				+ ' ' +
+				("0" + ts.getHours()).slice(-2) + ':' + ("0" + ts.getMinutes()).slice(-2) + ':' + ("0" + ts.getSeconds()).slice(-2)
+			;
+			timeSpan2 = te.getFullYear() + '-' +
+				("0" + (te.getMonth() + 1)).slice(-2) + '-' + ("0" + te.getDate()).slice(-2)
+				+ ' ' +
+				("0" + te.getHours()).slice(-2) + ':' + ("0" + te.getMinutes()).slice(-2) + ':' + ("0" + te.getSeconds()).slice(-2)
+			;
+		}
+		//
+		function drawChart(){
+			preDraw();
+			drawWaitsChart();
+			drawBlockingsChart();
+		}	
+		//------WAITS
+		function drawWaitsChart(){
+			var waitsQuery = "select snapTime,waitEventType, count(1) val from sessions_buffer where dbHost='"+hostName+"' " +
+			"and snapTime >= '" + timeSpan1 + "' and snapTime <= '" + timeSpan2 + "' group by snapTime,waitEventType order by snapTime asc";
+			showload();
+			a_getData(waitsQuery,drawWaitsChart_);
+		}
+		//--
+		function parseWaitsData(inputData) {
+			var dataLines = inputData.split(/[\n]+/);
+			var outData = [];
+			var tmpData = [];
+			var rowData = [];
+			var idx;
+			for (var i = 0; i < dataLines.length; i++) {
+				if (dataLines[i].length > 0) {
+					rowData = dataLines[i].split(/[\t]+/);
+					idx = Number(rowData[0].replace(/[:-\s]/g, ""));
+					if (typeof tmpData[idx] === 'undefined') {
+						tmpData[idx] = [];
+						tmpData[idx].push(rowData[0]);
+						//tmpData[idx] = [rowData[0], 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, ""];
+						for(var ti in arrWaits){
+							if(arrWaits[ti].hasOwnProperty("style")){
+								tmpData[idx].push(null);
+								tmpData[idx].push(arrWaits[ti]["style"]);
+								//tmpData[idx][arrWaits[ti]["id"]*2] = arrWaits[ti]["style"];
+							}
+						}
+					}
+					tmpData[idx][arrWaits[rowData[1]]["id"] * 2 - 1] = Number(rowData[2]);
+					//tmpData[idx][arrWaits[rowData[1]]["id"] * 2] = arrWaits[rowData[1]]["style"];
+				}
+			}
+			for (var wi in tmpData) {
+				outData.push(tmpData[wi]);
+			}
+			return outData;
+		}		
+		//--
+		function drawWaitsChart_(inputdata) {			
+			var drawRegion = "waitsregion";
+			var data = new google.visualization.DataTable();
+			//--add Columns
+			data.addColumn('string', arrWaits[0]);
+			for (var i in arrWaits) {
+				if( arrWaits[i].hasOwnProperty("style") ){
+					data.addColumn('number', i);
+					data.addColumn({type: 'string', role: "style"});
+				}
+			}
+			//-- add Data
+			data.addRows(parseWaitsData(inputdata));
+			var legendColors = [];
+			for (var i in arrWaits) {
+				if( arrWaits[i].hasOwnProperty("style") ){
+					legendColors.push(arrWaits[i]["style"]);
+				}
+			}
+			var options = {
+				title: 'Waits',
+				width: 1800,
+				height: 500,
+				hAxis: {textPosition: 'none'},
+				vAxis: {minValue: 0, format: '####'},
+				animation: {startup: 'true', duration: 1000},
+				selectionMode: 'single',
+				tooltip: {trigger: 'focus'},
+				aggregationTarget: 'category',
+				legend: {position: 'right', maxLines: 3},
+				colors: legendColors,
+				isStacked: true,
+				backgroundColor: {fill: 'transparent'}
+			};
+			var waitsChart = new google.visualization.AreaChart(document.getElementById(drawRegion));
+			waitsChart.draw(data, options);
+			hideload();
+			//--WAITS EVENTS
+			function waitsSelectHandler(e) {
+				if (waitsChart.getSelection().length === 0) {
+					if (typeof eventsChart !== 'undefined') {
+						eventsChart.clearChart();
+					}                     
+				} else {
+					if (typeof eventSessionsTable !== 'undefined') {
+						//eventSessionsTable.clearChart();
+					}  						
+					var sel = waitsChart.getSelection();
+					drawEventsChart(data.getColumnLabel(sel[0].column));
+					document.getElementById('eventsregion').scrollIntoView({block: "center", behavior: "smooth"});
+				}
+			}
+			google.visualization.events.addListener(waitsChart, 'select', waitsSelectHandler);
+		}
+		//------WAITS
+		//------BLOCKINGS
+		function drawBlockingsChart() {
+			var locksQuery = "select snapTime, sum(if(blockedBy=0,0,1)) as val from sessions_buffer where dbHost='"+hostName+"' " +
+			"and snapTime >= '" + timeSpan1 + "' and snapTime <= '" + timeSpan2 + "' group by snapTime order by snapTime asc";
+			showload();	
+			a_getData(locksQuery,drawBlockingsChart_);
+		}
+		//
+		function parseBlockingsData(inputData) {
+			var dataLines = inputData.split(/[\n]+/);
+			var outData = [];
+			var tmpData = [];
+			var rowData = [];
+			var idx;
+			sessionsBlocked = 0;
+			for (var i = 0; i < dataLines.length; i++) {
+				if (dataLines[i].length > 0) {
+					rowData = dataLines[i].split(/[\t]+/);
+					idx = Number(rowData[0].replace(/[:-\s]/g, ""));
+					tmpData[idx] = [rowData[0], Number(rowData[1])];
+					if (sessionsBlocked === 0 && Number(rowData[1]) !== 0) {
+						sessionsBlocked = 1;
+					}
+				}
+			}
+			for (var li in tmpData) {
+				outData.push(tmpData[li]);
+			}
+			return outData;
+		}		
+		//
+		function drawBlockingsChart_(inputdata) {
+			var drawRegion = "blockingsregion";
+			var data = new google.visualization.DataTable();
+			data.addColumn('string', 'Timestamp');
+			data.addColumn('number', 'Sessons blocked');
+			data.addRows(parseBlockingsData(inputdata));
+			var options = {
+				title: 'Blocked Sessions',
+				width: 1800,
+				height: 500,
+				hAxis: {textPosition: 'none'},
+				vAxis: {minValue: 0, format: '####'},
+				animation: {startup: 'true', duration: 1000},
+				legend: {position: 'right'},
+				backgroundColor: {fill: 'transparent'}
+			};
+			if (sessionsBlocked === 0) {
+				return;
+			}
+			var blockingsChart = new google.visualization.LineChart(document.getElementById(drawRegion));
+			blockingsChart.draw(data, options);
+			hideload();
+			/*
+			//--BLOCKINGS EVENTS
+			function locksSelectHandler(e) {
+				if (locksChart.getSelection().length === 0) {
+					if (typeof locksTreeTable !== 'undefined') {
+						locksTreeTable.clearChart();
+					}
+				} else {
+					var sel = locksChart.getSelection();
+					drawLocksTreeTable(data.getValue(sel[0].row, 0));
+					document.getElementById('lockstreeregion').scrollIntoView({block: "center", behavior: "smooth"});
+				}
+			}
+			google.visualization.events.addListener(locksChart, 'select', locksSelectHandler);
+			*/
+		}		
+		//------BLOCKINGS
+		//------EVENTS
+		function drawEventsChart(waitEventType) {		
+			var eventsQuery = "select snapTime,waitEvent, count(1) val from sessions_buffer where dbHost='"+hostName+"' " +
+			"and snapTime >= '" + timeSpan1 + "' and snapTime <= '" + timeSpan2 + "' and waitEventType='"+waitEventType+"' group by snapTime,waitEvent order by snapTime asc, val asc";
+			showload();	
+			a_getData(eventsQuery,drawEventsChart_);			
+		}
+		//
+		function parseEventsData(inputData) {
+			var dataLines = inputData.split(/[\n]+/);
+			var outData = [];
+			var tmpData = [];
+			var rowData = [];
+			var arrEvents = {};
+			var arrEventsIdx = 1;
+			eventsHeaderData = ['Timestamp'];
+			var idx;
+			for (var i = 0; i < dataLines.length; i++) {
+				if (dataLines[i].length > 0) {
+					rowData = dataLines[i].split(/[\t]+/);
+					if (typeof arrEvents[rowData[1]] === 'undefined') {
+						arrEvents[rowData[1]] = arrEventsIdx++;
+						eventsHeaderData.push(rowData[1]);
+					}
+				}
+			}
+			for (var i = 0; i < dataLines.length; i++) {
+				if (dataLines[i].length > 0) {
+					rowData = dataLines[i].split(/[\t]+/);
+					idx = Number(rowData[0].replace(/[:-\s]/g, ""));
+					if (typeof tmpData[idx] === 'undefined') {
+						tmpData[idx] = [];
+						tmpData[idx][0] = String(rowData[0]);
+						for (var ti = 1; ti < eventsHeaderData.length; ti++) {
+							tmpData[idx][ti] = null;
+						}
+					}
+					tmpData[idx][arrEvents[rowData[1]]] = Number(rowData[2]);
+				}
+			}
+			outData.push(eventsHeaderData);
+			for (var ei in tmpData) {
+				outData.push(tmpData[ei]);
+			}
+			return outData;
+		}		
+		//
+		function drawEventsChart_(inputdata) {
+			var drawRegion = "eventsregion";
+			var data = google.visualization.arrayToDataTable(parseEventsData(inputdata));
+			if (data.getNumberOfRows() === 0) {
+				return;
+			}                
+			var options = {
+				title: 'Events',
+				width: 1800,
+				height: 500,
+				hAxis: {textPosition: 'none'},
+				vAxis: {minValue: 0, format: '####'},
+				vAxis: {minValue: 0, format: '####'},
+				animation: {startup: 'true', duration: 1000},
+				//orientation : 'vertical',
+				legend: {position: 'right', maxLines: 3},
+				isStacked: true,
+				backgroundColor: {fill: 'transparent'}
+			};
+			eventsChart = new google.visualization.AreaChart(document.getElementById(drawRegion));
+			eventsChart.draw(data, options);
+			hideload();
+			/*
+			//--EVENTS EVENTS
+			function eventsSelectHandler(e) {
+				if (eventsChart.getSelection().length === 0) {
+					if (typeof eventSessionsTable !== 'undefined') {
+						eventSessionsTable.clearChart();
+					}
+				} else {
+					var sel = eventsChart.getSelection();
+					drawEventSessions(data.getColumnLabel(sel[0].column),data.getValue(sel[0].row, 0));
+					document.getElementById('eventsessregion').scrollIntoView({block: "center", behavior: "smooth"});
+				}					
+			}
+			google.visualization.events.addListener(eventsChart, 'select', eventsSelectHandler);
+			*/
+		}		
+		//------EVENTS
+    </script>
+  </head>
+  <body onLoad=''>
+	<div id="modalrg"></div>  
+    <div id="waitsregion"></div>  
+    <div id="blockingsregion"></div>	
+    <div id="eventsregion"></div>  	    
+    <div id="eventsessregion"></div>  	
+  </body>
+</html>    

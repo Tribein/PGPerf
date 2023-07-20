@@ -34,9 +34,9 @@ public class SessionsCollector implements Configurable {
             "coalesce(cast(client_addr as text),'n/a') as client_addr, " +
             "coalesce(client_port,0) as client_port, " +
             "backend_start, " +
-            "coalesce(xact_start,('1970-01-01 00:00:00+00'::timestamptz)) as xact_start, " +
-            "coalesce(query_start,('1970-01-01 00:00:00+00'::timestamptz)) as query_start, " +
-            "coalesce(state_change,('1970-01-01 00:00:00+00'::timestamptz)) as state_change, " +
+            "coalesce(xact_start,('2000-01-01 00:00:00+00'::timestamptz)) as xact_start, " +
+            "coalesce(query_start,('2000-01-01 00:00:00+00'::timestamptz)) as query_start, " +
+            "coalesce(state_change,('2000-01-01 00:00:00+00'::timestamptz)) as state_change, " +
             "coalesce(wait_event_type,'n/a') as wait_event_type, " +
             "coalesce(wait_event,'n/a') as wait_event, " +
             "coalesce(state,'n/a') as state, " +
@@ -68,10 +68,10 @@ public class SessionsCollector implements Configurable {
                 rowList.add(rs.getString(6));
                 rowList.add(rs.getInt(7));
                 //
-                rowList.add(rs.getTimestamp(8,MYTZ).getTime() / 1000L);
-                rowList.add(rs.getTimestamp(9,MYTZ).getTime() / 1000L);
-                rowList.add(rs.getTimestamp(10,MYTZ).getTime() / 1000L);
-                rowList.add(rs.getTimestamp(11,MYTZ).getTime() / 1000L);
+                rowList.add(rs.getTimestamp(8,MYTZCAL).getTime() / 1000L);
+                rowList.add(rs.getTimestamp(9,MYTZCAL).getTime() / 1000L);
+                rowList.add(rs.getTimestamp(10,MYTZCAL).getTime() / 1000L);
+                rowList.add(rs.getTimestamp(11,MYTZCAL).getTime() / 1000L);
                 //
                 rowList.add(rs.getString(12));
                 rowList.add(rs.getString(13));

@@ -6,11 +6,9 @@
 package local.pgperf;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
-import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;

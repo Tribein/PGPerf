@@ -5,6 +5,8 @@
  */
 package local.pgperf;
 
+import java.time.Clock;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.TimeZone;
@@ -33,7 +35,8 @@ public interface Configurable {
   public static final int SECONDSBETWEENSESSWAITSSNAPS      = 10;
   public static final int SECONDSBETWEENSYSSTATSSNAPS       = 10;
   
-  public static final Calendar MYTZ                         = Calendar.getInstance(TimeZone.getTimeZone("UTC"));  
+  public static final Calendar MYTZCAL                        = Calendar.getInstance(TimeZone.getTimeZone("Europe/Moscow"));  
+  public static final Clock MYTZCLOACK                               = Clock.system(ZoneId.of("Europe/Moscow"));
   public static final DateTimeFormatter 
                           DATEFORMAT          = DateTimeFormatter.ofPattern("YYYY-MM-dd HH:mm:ss");    
 }
