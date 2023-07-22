@@ -1,3 +1,6 @@
+.sc {  
+}
+
 .sbl-circ {
   height: 48px;
   width: 48px;
@@ -8,12 +11,14 @@
   border-radius: 50%;
   border-top-color: transparent;
   animation: rotate 1s linear infinite; }
+
 @keyframes rotate {
   0% {
     transform: rotate(0); }
   100% {
     transform: rotate(360deg); } 
 }		
+
 .modal {
   display: none;
   position: fixed;
@@ -27,6 +32,7 @@
   background-color: rgb(0,0,0); 
   background-color: rgba(160,160,160,0.4); 
 }
+
 .modal-content {
   margin: auto;
   padding: 20px;

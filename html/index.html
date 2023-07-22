@@ -6,6 +6,7 @@
 	<script type="text/javascript" src="include.js"></script>
 	<script type="text/javascript">
 		google.charts.load('current', {'packages': ['corechart']});
+		google.charts.load('current', {'packages': ['table']}); 
 		google.charts.setOnLoadCallback(drawChart);
 		//
         var ts;
@@ -14,6 +15,9 @@
         var timeSpan2;
         var eventsChart;
         var eventSessionsTable;
+        var blockingsTreeTable;
+        var timelinePID;
+        var sessTimeLineTable;
         //--changable
         var spanMinutes = 30;
         var dbName = 'mydb';
@@ -33,6 +37,20 @@
 			"Timeout":		{"id":9, "style":"MistyRose"},
 			"n/a":			{"id":10, "style":"Magenta"}
 		};
+		var arrEventSessionsColumns = [
+			"Database", "PID", "Blocking PID", "Application","Client Address","Logon Time","Transaction Time",
+			"Query Time","Session State Change","Query ID","Transaction ID","Transaction Min","Backend Type"
+		];		
+		var arrSessionTimeLineColumns = [
+			"Time","Database", "Blocking PID", "State", "Wait Type", "Wait Event", "Application","Client Address",
+			"Logon Time","Transaction Time","Query Time","Session State Change",
+			"Query ID","Transaction ID","Transaction Min","Backend Type"		
+		];		
+		var arrBlockingsTreeColumns = [
+			"PID", "Blocking PID", "Database", "State", "Wait Type", "Wait Event", "Application","Client Address",
+			"Logon Time","Transaction Time","Query Time","Session State Change",
+			"Query ID","Transaction ID","Transaction Min","Backend Type"		
+		];			
 		//
 		function preDraw() {
 			te = new Date();
@@ -75,17 +93,14 @@
 					if (typeof tmpData[idx] === 'undefined') {
 						tmpData[idx] = [];
 						tmpData[idx].push(rowData[0]);
-						//tmpData[idx] = [rowData[0], 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, ""];
 						for(var ti in arrWaits){
 							if(arrWaits[ti].hasOwnProperty("style")){
 								tmpData[idx].push(null);
 								tmpData[idx].push(arrWaits[ti]["style"]);
-								//tmpData[idx][arrWaits[ti]["id"]*2] = arrWaits[ti]["style"];
 							}
 						}
 					}
 					tmpData[idx][arrWaits[rowData[1]]["id"] * 2 - 1] = Number(rowData[2]);
-					//tmpData[idx][arrWaits[rowData[1]]["id"] * 2] = arrWaits[rowData[1]]["style"];
 				}
 			}
 			for (var wi in tmpData) {
@@ -202,23 +217,145 @@
 			var blockingsChart = new google.visualization.LineChart(document.getElementById(drawRegion));
 			blockingsChart.draw(data, options);
 			hideload();
-			/*
 			//--BLOCKINGS EVENTS
-			function locksSelectHandler(e) {
-				if (locksChart.getSelection().length === 0) {
-					if (typeof locksTreeTable !== 'undefined') {
-						locksTreeTable.clearChart();
+			function blockingsSelectHandler(e) {
+				if (blockingsChart.getSelection().length === 0) {
+					if (typeof blockingsTable !== 'undefined') {
+						blockingsTreeTable.clearChart();
 					}
 				} else {
-					var sel = locksChart.getSelection();
-					drawLocksTreeTable(data.getValue(sel[0].row, 0));
-					document.getElementById('lockstreeregion').scrollIntoView({block: "center", behavior: "smooth"});
+					var sel = blockingsChart.getSelection();
+					drawBlockingsTreeTable(data.getValue(sel[0].row, 0));
+					document.getElementById('blockingstreeregion').scrollIntoView({block: "center", behavior: "smooth"});
 				}
 			}
-			google.visualization.events.addListener(locksChart, 'select', locksSelectHandler);
-			*/
+			google.visualization.events.addListener(blockingsChart, 'select', blockingsSelectHandler);
 		}		
 		//------BLOCKINGS
+		//------BLOCKINGS TREE
+		function drawBlockingsTreeTable(input) {
+			blockingsTreeQuery = "select pid,blockedBy,dbName,state,waitEventType,waitEvent,if(notEmpty(appName),appName,'n/a') as appName,clientAddr,"+
+				"backendStart,xStart,qStart,stateChange,queryId,xId,xMin,backendType from sessions_buffer " +
+				"where dbHost='"+hostName+"' and snapTime='" + input + "' "+
+				"and ( blockedBy<>0 or pid in (select blockedBy from sessions_buffer where dbHost='"+hostName+"' and snapTime='" + input + "' and blockedBy<>0) )";
+			showload();
+			a_getData(blockingsTreeQuery,drawBlockingsTreeTable_);				
+		}
+		//
+		function parseLocksTreeData(inputData) 
+		{
+			var dataLines = inputData.split(/[\n]+/);
+			var outData = [];
+			var tmpData = [];
+			var tmpData2 = [];
+			var rowData = [];
+			var idx = 0;
+			var r = 0;
+			var sidx = 0;
+			var flag;
+			var arrTree = [];
+			var arr_test = [];
+			var arr_permitted_branches = [];
+			var arrPIDSorted = [];
+			var arrPIDLevel = [];
+			var arrBranchID = [];
+			var data;
+			for (var i = 0; i < dataLines.length; i++) {
+				if (dataLines[i].length > 0) {
+					rowData = dataLines[i].split(/[\t]+/);
+					idx = Number(rowData[0]);
+					tmpData[idx] = [];
+					for (var j = 0; j < arrBlockingsTreeColumns.length; j++) {
+						tmpData[idx][j] = rowData[j];
+					}
+					arrTree.push({"id": Number(rowData[0]), "parentid": Number(rowData[1])});
+				}
+			}
+			arrTree = unflatten(arrTree);
+			function recGetPID(input, level) {
+				if (level == 0) {
+					sidx++;
+					arr_test = [];
+					flag = 0;
+				}else {
+					null;
+				}
+				if (input.parentid == 0){
+					arr_permitted_branches.push(sidx);
+				}
+				arrPIDSorted.push(Number(input.id));
+				arrPIDLevel.push(level);
+				arrBranchID.push(sidx);
+				arr_test.push(Number(input.id));
+				if (input.children.length > 0) {
+					level++;
+					for (var s in input.children) {
+						if (arr_test.includes(input.children[s].id)){
+							if (flag == 0){
+								flag = 1;
+								recGetPID(input.children[s], level);
+							}else {
+								arr_permitted_branches.push(sidx);
+								return;
+							}
+						} else {
+							recGetPID(input.children[s], level);
+						} 
+					}
+				}
+			}
+			for (var i in arrTree) {
+				recGetPID(arrTree[i], 0);
+			}
+			outData.push(arrBlockingsTreeColumns);
+			for (var i = 0; i < arrPIDSorted.length; i++) {
+				if (arr_permitted_branches.includes(arrBranchID[i]) ) {
+					r++;
+					tmpData2[r] = [];
+					for (var j = 0; j < arrBlockingsTreeColumns.length; j++) {
+						tmpData2[r][j] = tmpData[arrPIDSorted[i]][j];
+					}
+					if (arrPIDLevel[i] == 0) {
+						tmpData2[r][0] = '<strong>' + tmpData2[r][0] + '</strong>';		
+					}else{
+						for (var j = 0; j < arrPIDLevel[i]; j++) {
+							tmpData2[r][0] = '&nbsp;&nbsp;&nbsp;&nbsp;' + tmpData2[r][0];
+						}
+					}
+					outData.push(tmpData2[r]);
+				}
+			}   
+			return outData;
+		}				
+		//
+		function drawBlockingsTreeTable_(inputdata) {
+			var drawRegion = "blockingstreeregion";
+			var data = google.visualization.arrayToDataTable(parseLocksTreeData(inputdata));
+			var options = {
+				title: 'LocksTree',
+				width: '100%',
+				//height: '100%',
+				allowHtml: true,
+				showRowNumber: true,
+				backgroundColor: {fill: 'transparent'},
+				cssClassNames: { tableCell: 'sc' }
+			};
+			var blockingsTreeTable = new google.visualization.Table(document.getElementById(drawRegion));
+			blockingsTreeTable.draw(data, options);
+			hideload();
+			function blockingsTreeTableSelectHandler(e) {
+				if (blockingsTreeTable.getSelection().length === 0) {
+					/*if (typeof statsTable !== 'undefined') {
+					}*/
+				} else {
+					var sel = blockingsTreeTable.getSelection();
+					drawSessionTimeLine(data.getValue(sel[0].row, 0).match(/[0-9]+/)[0]);
+					document.getElementById('sessiontimelineregion').scrollIntoView({block: "center", behavior: "smooth"});
+				}
+			}
+			google.visualization.events.addListener(blockingsTreeTable, 'select', blockingsTreeTableSelectHandler);
+		}		
+		//------BLOCKINGS TREE
 		//------EVENTS
 		function drawEventsChart(waitEventType) {		
 			var eventsQuery = "select snapTime,waitEvent, count(1) val from sessions_buffer where dbHost='"+hostName+"' " +
@@ -270,6 +407,7 @@
 			var drawRegion = "eventsregion";
 			var data = google.visualization.arrayToDataTable(parseEventsData(inputdata));
 			if (data.getNumberOfRows() === 0) {
+				hideload();
 				return;
 			}                
 			var options = {
@@ -288,7 +426,6 @@
 			eventsChart = new google.visualization.AreaChart(document.getElementById(drawRegion));
 			eventsChart.draw(data, options);
 			hideload();
-			/*
 			//--EVENTS EVENTS
 			function eventsSelectHandler(e) {
 				if (eventsChart.getSelection().length === 0) {
@@ -298,20 +435,152 @@
 				} else {
 					var sel = eventsChart.getSelection();
 					drawEventSessions(data.getColumnLabel(sel[0].column),data.getValue(sel[0].row, 0));
-					document.getElementById('eventsessregion').scrollIntoView({block: "center", behavior: "smooth"});
+					document.getElementById('eventsessionsregion').scrollIntoView({block: "center", behavior: "smooth"});
 				}					
 			}
 			google.visualization.events.addListener(eventsChart, 'select', eventsSelectHandler);
-			*/
 		}		
 		//------EVENTS
+		//------EVENT SESSIONS
+		function parseEventSessionsData(inputData) {
+			var dataLines = inputData.split(/[\n]+/);
+			var outData = [];
+			var tmpData = [];
+			var rowData = [];
+			var idx;
+			var arrTree = [];
+			var arrPIDSorted = [];
+			var arrPIDLevel = [];
+			for (var i = 0; i < dataLines.length; i++) {
+				if (dataLines[i].length > 0) {
+					rowData = dataLines[i].split(/[\t]+/);
+					tmpData[i] = [];
+					for (var j = 0; j < arrEventSessionsColumns.length; j++) {
+						tmpData[i][j] = rowData[j];
+					}
+				}
+			}
+			outData.push(arrEventSessionsColumns);
+			for (var i = 0; i < tmpData.length; i++) {
+				outData.push(tmpData[i]);
+			}
+			return outData;
+		}		
+		function drawEventSessions (event,ts){
+			var drawRegion = "eventsessionsregion";
+			eventSessionsQuery = "select dbName,pid,blockedBy,if(notEmpty(appName),appName,'n/a') as appName,clientAddr,backendStart,xStart,qStart,stateChange,queryId,xId,xMin,backendType "+
+				"from sessions_buffer " +
+				"where dbHost='"+hostName+"' and snapTime='" + ts + "' and waitEvent='"+event+"' order by pid";
+			showload();
+			var data = google.visualization.arrayToDataTable(parseEventSessionsData(getData(eventSessionsQuery)));
+			var options = {
+				title: 'Sessions by Event',
+				width: '100%',
+				//height: '100%',
+				allowHtml: true,
+				showRowNumber: false,
+				backgroundColor: {fill: 'transparent'},
+				cssClassNames: { tableCell: 'sc' }
+			};
+			eventSessionsTable = new google.visualization.Table(document.getElementById(drawRegion));
+			eventSessionsTable.draw(data, options);
+			hideload();
+			//--EVENT SESSION EVETNS
+			function eventSessionsTableSelectHandler(e) {
+				if (eventSessionsTable.getSelection().length === 0) {
+				} else {
+					var sel = eventSessionsTable.getSelection();
+					drawSessionTimeLine(data.getValue(sel[0].row, 1));
+					document.getElementById('sessiontimelineregion').scrollIntoView({block: "center", behavior: "smooth"});
+				}
+			}
+			google.visualization.events.addListener(eventSessionsTable, 'select', eventSessionsTableSelectHandler);				
+		}		
+		//------EVENT SESSIONS
+		//------SESSION TIMELINE
+		function drawSessionTimeLine(pid){
+			timelinePID = pid;
+			var SessionTimeLineQuery = "select snapTime,dbName,blockedBy,state,waitEventType,waitEvent,if(notEmpty(appName),appName,'n/a') as appName,clientAddr,"+
+				"backendStart,xStart,qStart,stateChange,queryId,xId,xMin,backendType "+
+				"from sessions_buffer " +
+				"where dbHost='"+hostName+"' and snapTime>='" + timeSpan1 + "' and snapTime<='"+timeSpan2 +"' " +
+				"and pid="+pid+" "+
+				"order by snapTime asc";	
+			showload();			
+			a_getData(SessionTimeLineQuery,drawSessionTimeLine_);	
+		}
+		//
+		function parseSessionTimeLineData(inputData) {
+			var dataLines = inputData.split(/[\n]+/);
+			var outData = [];
+			var tmpData = [];
+			var rowData = [];
+			var idx;
+			var arrTree = [];
+			var arrPIDSorted = [];
+			var arrPIDLevel = [];
+			for (var i = 0; i < dataLines.length; i++) {
+				if (dataLines[i].length > 0) {
+					rowData = dataLines[i].split(/[\t]+/);
+					tmpData[i] = [];
+					for (var j = 0; j < arrSessionTimeLineColumns.length; j++) {
+						tmpData[i][j] = rowData[j];
+					}
+				}
+			}
+			outData.push(arrSessionTimeLineColumns);
+			for (var i = 0; i < tmpData.length; i++) {
+				outData.push(tmpData[i]);
+			}
+			return outData;
+		}
+		//
+		function drawSessionTimeLine_(inputdata){
+			var drawRegion = "sessiontimelineregion";
+			var data = google.visualization.arrayToDataTable(parseSessionTimeLineData(inputdata));
+			var options = {
+				title: "Session "+timelinePID+" timeline",
+				width: '100%',
+				//height: '100%',
+				allowHtml: true,
+				showRowNumber: true,
+				backgroundColor: {fill: 'transparent'},
+				cssClassNames: { tableCell: 'sc' }
+			};
+			var sessTimeLineTable = new google.visualization.Table(document.getElementById(drawRegion));
+			sessTimeLineTable.draw(data, options);
+			hideload();
+			/*
+			//--SESSION TIMELINE EVENTS
+			function sqlidSelectHandler(e) {
+				if (sessTimeLine.getSelection().length === 0) {
+					if (typeof sessTimeLine !== 'undefined') {
+						document.getElementById('sqltextregion').innerHTML='';
+					}
+				} else {
+					var sel = sessTimeLine.getSelection();
+					document.getElementById('sqltextregion').innerHTML = '<span style="font-family: monospace; font-size: large;"><b>'+
+						data.getValue(sel[0].row, 1)+
+						'</b>:<br />'+
+						getSQLText(data.getValue(sel[0].row, 1)).replace(/\\n/g,'<br />').replace(/\\\'/g,"'")+
+						'</span>'
+					;
+					document.getElementById('sqltextregion').scrollIntoView({block: "center", behavior: "smooth"});
+				}
+			}
+			google.visualization.events.addListener(sessTimeLine, 'select', sqlidSelectHandler);                 
+			*/
+		}
+		//------SESSION TIMELINE		
     </script>
   </head>
   <body onLoad=''>
 	<div id="modalrg"></div>  
     <div id="waitsregion"></div>  
     <div id="blockingsregion"></div>	
+    <div id="blockingstreeregion"></div>
     <div id="eventsregion"></div>  	    
-    <div id="eventsessregion"></div>  	
+    <div id="eventsessionsregion"></div> 
+    <div id="sessiontimelineregion"></div> 	
   </body>
 </html>    
