@@ -18,24 +18,24 @@
         var blockingsTreeTable;
         var timelinePID;
         var sessTimeLineTable;
+        var sessionsBlocked = 0;
         //--changable
         var spanMinutes = 30;
         var dbName = 'mydb';
-        var sessionsBlocked = 0;
         var hostName = 'localhost';		
 		//
 		var arrWaits = {
 			"Timestamp":	{"id":0},
-			"Activity":		{"id":1, "style":"LimeGreen"},
+			"Activity":		{"id":1, "style":"Teal"},
 			"BufferPin":	{"id":2, "style":"Orange"},
 			"Client":		{"id":3, "style":"Moccasin"},
 			"Extension":	{"id":4, "style":"Sienna"},
 			"IO":			{"id":5, "style":"Blue"},
 			"IPC":			{"id":6, "style":"Silver"},
-			"Lock":			{"id":7, "style":"DarkRed"},
-			"LWLock":		{"id":8, "style":"Red"},
+			"Lock":			{"id":7, "style":"Red"},
+			"LWLock":		{"id":8, "style":"DarkRed"},
 			"Timeout":		{"id":9, "style":"MistyRose"},
-			"n/a":			{"id":10, "style":"Magenta"}
+			"n/a":			{"id":10, "style":"LimeGreen"}
 		};
 		var arrEventSessionsColumns = [
 			"Database", "PID", "Blocking PID", "Application","Client Address","Logon Time","Transaction Time",

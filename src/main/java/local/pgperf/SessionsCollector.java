@@ -44,7 +44,12 @@ public class SessionsCollector implements Configurable {
             "backend_type, " +
             "coalesce(cast(cast(backend_xid as text) as bigint),0) as backend_xid, " +
             "coalesce(cast(cast(backend_xmin as text) as bigint),0) as backend_xmin " +
-        "from pg_catalog.pg_stat_activity";
+        "from pg_catalog.pg_stat_activity "+
+        "where (" + 
+            "(coalesce(state,'-')<>'idle' and coalesce(wait_event,'-')<>'ClientRead') "+
+            "or state_change  > current_timestamp  - interval '"+SECONDSBETWEENSESSWAITSSNAPS+"' second"+
+        ") and pid<>pg_backend_pid()"
+        ;
 
     public SessionsCollector(Connection connection, BlockingQueue<PgCkhMsg> queue, String dbname, String dbhost, String connstr) {
         ckhQueue                = queue;

@@ -6,8 +6,6 @@
 package local.pgperf;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
-import com.mchange.v2.log.MLevel;
-import com.mchange.v2.log.MLogger;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -25,15 +23,10 @@ import java.util.Scanner;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-//import java.util.logging.Handler;
-//import java.util.logging.Level;
-//import java.util.logging.LogManager;
-//import java.util.logging.Logger;
 import oracle.jdbc.OracleConnection;
 import org.slf4j.LoggerFactory;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
-import java.util.TimeZone;
 
 
 public class PGPerf implements Configurable {
