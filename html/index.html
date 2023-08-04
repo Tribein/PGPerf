@@ -148,14 +148,15 @@
 			hideload();
 			//--WAITS EVENTS
 			function waitsSelectHandler(e) {
+				if (typeof eventsChart !== 'undefined') {
+					eventsChart.clearChart();
+				}    	
+				if (typeof eventSessionsTable !== 'undefined') {
+					eventSessionsTable.clearChart();
+				}  													
 				if (waitsChart.getSelection().length === 0) {
-					if (typeof eventsChart !== 'undefined') {
-						eventsChart.clearChart();
-					}                     
+                 
 				} else {
-					if (typeof eventSessionsTable !== 'undefined') {
-						//eventSessionsTable.clearChart();
-					}  						
 					var sel = waitsChart.getSelection();
 					drawEventsChart(data.getColumnLabel(sel[0].column));
 					document.getElementById('eventsregion').scrollIntoView({block: "center", behavior: "smooth"});
@@ -428,10 +429,10 @@
 			hideload();
 			//--EVENTS EVENTS
 			function eventsSelectHandler(e) {
+				if (typeof eventSessionsTable !== 'undefined') {
+					eventSessionsTable.clearChart();
+				}				
 				if (eventsChart.getSelection().length === 0) {
-					if (typeof eventSessionsTable !== 'undefined') {
-						eventSessionsTable.clearChart();
-					}
 				} else {
 					var sel = eventsChart.getSelection();
 					drawEventSessions(data.getColumnLabel(sel[0].column),data.getValue(sel[0].row, 0));
