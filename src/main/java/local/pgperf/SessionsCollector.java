@@ -77,7 +77,8 @@ public class SessionsCollector implements Configurable {
             "or state_change  > current_timestamp  - interval '"+SECONDSBETWEENSESSWAITSSNAPS+"' second"+
         ") and pid<>pg_backend_pid()"
         ;    
-    private static final String PGVERSIONQUERY = "select regexp_substr(version(),'\\d+',1,1)::int";
+    //private static final String PGVERSIONQUERY = "select regexp_substr(version(),'\\d+',1,1)::int";
+    private static final String PGVERSIONQUERY = "select floor(split_part(version(),' ',2)::decimal)";
     public SessionsCollector(Connection connection, BlockingQueue<PgCkhMsg> queue, String dbname, String dbhost, String connstr) {
         ckhQueue                = queue;
         con                     = connection;
