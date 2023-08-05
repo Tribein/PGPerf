@@ -1,16 +1,9 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package local.pgperf;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
@@ -104,6 +97,16 @@ public class StatCollector
                         );
                         waits.RunCollection();
                         break;
+                    case THREADSQL:
+                        SQLsCollector sqls = new SQLsCollector(
+                                con, 
+                                ckhQueue, 
+                                dbUniqueName, 
+                                dbHostName, 
+                                dbConnectionString
+                        );
+                        sqls.RunCollection();
+                        break;                        
                     default:
                         lg.LogError(DATEFORMAT.format(LocalDateTime.now()) + "\t" + dbConnectionString 
                                 + "\t" + "unknown thread type provided!"

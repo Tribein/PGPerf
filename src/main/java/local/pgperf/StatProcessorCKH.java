@@ -1,8 +1,4 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package local.pgperf;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
@@ -23,6 +19,8 @@ public class StatProcessorCKH extends Thread implements Configurable{
   private final String dbName;
   private final String dbHost;    
   private final String CKHINSERTSESSIONSQUERY = "insert into sessions_buffer values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+  private final String CKHINSERTSQLTEXTSQUERY = "insert into sqltexts_buffer values (?,?)";
+  private final String CKHINSERTSQLSTATSQUERY = "insert into sqlstats_buffer values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
   
   public StatProcessorCKH(int inpType, long inpTS, String inpDBName, String inpDBHost, ComboPooledDataSource ckhDS, List inpList)
   {
@@ -77,24 +75,123 @@ public class StatProcessorCKH extends Thread implements Configurable{
       e.printStackTrace();
     }
   }
+  public void processSQLTexts(PreparedStatement prep, List lst)
+  {
+    List row = new ArrayList();
+    try
+    {
+      for (int i = 0; i < lst.size(); i++)
+      {
+        row = (List)lst.get(i);
+        prep.setLong(1, (long)row.get(1));
+        prep.setString(2, (String)row.get(0));
+        prep.addBatch();
+      }
+      prep.executeBatch();
+    }
+    catch (SQLException e)
+    {
+      lg.LogError(DATEFORMAT.format(LocalDateTime.now()) + "\t" + 
+              dbHost + "\t"+"Error processing sql texts!"
+      );
+      
+      e.printStackTrace();
+    }
+  }  
+  public void processSQLStats(PreparedStatement prep, List lst, long currentDateTime)
+  {
+    List row = new ArrayList();
+    try
+    {
+      for (int i = 0; i < lst.size(); i++)
+      {
+        row = (List)lst.get(i);
+        prep.setLong(1, currentDateTime);
+        prep.setString(2, dbHost);
+        prep.setString(3, (String) row.get(2));
+        prep.setLong(4, (Long) row.get(1) );
+        prep.setString(5, (String) row.get(3));
+        prep.setInt(6, ( (boolean) row.get(4))? 1 : 0 );
+        prep.setLong(7, (Long) row.get(5) );
+        prep.setLong(8, (Long) row.get(6) );
+        prep.setLong(9, (Long) row.get(7) );
+        //--plan time
+        prep.setDouble(10, (Double) row.get(8) );
+        prep.setDouble(11, (Double) row.get(9) );
+        prep.setDouble(12, (Double) row.get(10) );
+        //--exec time
+        prep.setDouble(13, (Double) row.get(11) );
+        prep.setDouble(14, (Double) row.get(12) );
+        prep.setDouble(15, (Double) row.get(13) );        
+        //--shared block counters
+        prep.setLong(16, (Long) row.get(14) );
+        prep.setLong(17, (Long) row.get(15) );
+        prep.setLong(18, (Long) row.get(16) );        
+        //--local block counters 
+        prep.setLong(19, (Long) row.get(17) );
+        prep.setLong(20, (Long) row.get(18) );
+        prep.setLong(21, (Long) row.get(19) );                
+        prep.setLong(22, (Long) row.get(20) );   
+        //--temp block counters
+        prep.setLong(23, (Long) row.get(21) );                
+        prep.setLong(24, (Long) row.get(22) );           
+        //--block timings
+        prep.setDouble(25, (Double) row.get(23) );
+        prep.setDouble(26, (Double) row.get(24) );
+        prep.setDouble(27, (Double) row.get(25) );           
+        prep.setDouble(28, (Double) row.get(26) );   
+        //--wal
+        prep.setLong(29, (Long) row.get(27) );
+        prep.setLong(30, (Long) row.get(28) );
+        prep.setLong(31, (Long) row.get(29) );
+        //--jit counters
+        prep.setLong(32, (Long) row.get(30) );
+        prep.setLong(33, (Long) row.get(31) );
+        prep.setLong(34, (Long) row.get(31) );        
+        prep.setLong(35, (Long) row.get(33) );
+        //--jit time
+        prep.setDouble(36, (Double) row.get(34) );
+        prep.setDouble(37, (Double) row.get(35) );
+        prep.setDouble(38, (Double) row.get(36) );           
+        prep.setDouble(39, (Double) row.get(37) ); 
+        prep.addBatch();
+      }
+      prep.executeBatch();
+    }
+    catch (SQLException e)
+    {
+      lg.LogError(DATEFORMAT.format(LocalDateTime.now()) + "\t" + 
+              dbHost + "\t"+"Error processing sql stats!"
+      );
+      
+      e.printStackTrace();
+    }
+  }  
   
- @Override
+  @Override
   public void run()
   {
     lg = new SLF4JLogger();
     try{
       Connection ckhConnection = ckhDataSource.getConnection();
       PreparedStatement ckhPreparedStatement = null;
-      switch (dataType)
-      {
-      case RSSESSIONWAIT: 
-        ckhPreparedStatement = ckhConnection.prepareStatement(CKHINSERTSESSIONSQUERY);
-        processSessions(ckhPreparedStatement, dataList, dataTS);
+      switch (dataType){
+        case RSSESSIONWAIT: 
+            ckhPreparedStatement = ckhConnection.prepareStatement(CKHINSERTSESSIONSQUERY);
+            processSessions(ckhPreparedStatement, dataList, dataTS);
         break;
-      default: 
-        lg.LogError(DATEFORMAT.format(LocalDateTime.now()) + "\t"+
-                "Unsupported run type: " + dataType
-        );
+        case RSSQLTEXT: 
+            ckhPreparedStatement = ckhConnection.prepareStatement(CKHINSERTSQLTEXTSQUERY);
+            processSQLTexts(ckhPreparedStatement, dataList);
+        break;   
+        case RSSQLSTAT: 
+            ckhPreparedStatement = ckhConnection.prepareStatement(CKHINSERTSQLSTATSQUERY);
+            processSQLStats(ckhPreparedStatement, dataList,dataTS);
+        break;        
+        default: 
+            lg.LogError(DATEFORMAT.format(LocalDateTime.now()) + "\t"+
+                    "Unsupported run type: " + dataType
+            );
       }
       if ((ckhPreparedStatement != null) && (!ckhPreparedStatement.isClosed())) {
         ckhPreparedStatement.close();

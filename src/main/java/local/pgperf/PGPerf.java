@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package local.pgperf;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
@@ -53,6 +48,7 @@ public class PGPerf implements Configurable {
     private static String ORADBLISTPASSWORD = "";
     private static String ORADBLISTQUERY = "";
     static Map<String, Thread> dbSessionsList = new HashMap();
+    static Map<String, Thread> dbSQLsStatsList = new HashMap();
     static Thread[] ckhQueueThreads;
     private static ComboPooledDataSource CKHDataSource;
     private static BlockingQueue<PgCkhMsg> ckhQueue = new LinkedBlockingQueue();    
@@ -233,6 +229,46 @@ public class PGPerf implements Configurable {
             );
             */
         }
+    }
+    
+    private static void processSQLs(String dbLine) {
+        if ((!dbSQLsStatsList.containsKey(dbLine))
+                || (!dbSQLsStatsList.get(dbLine).isAlive())) {
+            try {
+                if (dbSQLsStatsList.containsKey(dbLine)) {
+                    dbSQLsStatsList.remove(dbLine);
+                }
+                dbSQLsStatsList.put(
+                        dbLine, 
+                        new StatCollector(
+                                dbLine, 
+                                DBUSERNAME, 
+                                DBPASSWORD, 
+                                CKHDataSource, 
+                                THREADSQL, 
+                                ckhQueue
+                        )
+                );
+                lg.LogWarn(DATEFORMAT.format(LocalDateTime.now()) + "\t" + dbLine
+                        + "\t" + "starting sql stats thread"
+                );
+
+                dbSQLsStatsList.get(dbLine).start();
+            } catch (Exception e) {
+                lg.LogError(DATEFORMAT.format(LocalDateTime.now()) + "\t" + dbLine
+                        + "\t" + "error running sql stats thread"
+                );
+
+                e.printStackTrace();
+            }
+        } else {
+            /*
+            lg.LogWarn(DATEFORMAT.format(LocalDateTime.now()) + "\t" + dbLine
+                    + "\t" + "sqls thread state"
+                    + "\t" + dbSQLsStatsList.get(dbLine).getState().toString()
+            );
+            */
+        }
     }    
     public static void main(String[] args) throws InterruptedException {
 /*
@@ -291,10 +327,10 @@ public class PGPerf implements Configurable {
                 if (GATHERSYSSTATS) {
                     processSystemRoutines(dbLine);
                 }
-                if (GATHERSQLSTATS) {
-                    processSQLRoutines(dbLine);
-                }
                 */
+                if (GATHERSQLSTATS) {
+                    processSQLs(dbLine);
+                }
             }
             TimeUnit.SECONDS.sleep(SECONDSTOSLEEP);
         }        
