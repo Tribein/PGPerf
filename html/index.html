@@ -351,7 +351,16 @@
 				} else {
 					var sel = blockingsTreeTable.getSelection();
 					drawSessionTimeLine(data.getValue(sel[0].row, 0).match(/[0-9]+/)[0]);
-					document.getElementById('sessiontimelineregion').scrollIntoView({block: "center", behavior: "smooth"});
+					try{
+						var qId = data.getValue(sel[0].row, 12);
+						if( Number(qId) !== 0){
+							showSQLText(qId);
+						}else{
+							document.getElementById('sessiontimelineregion').scrollIntoView({block: "center", behavior: "smooth"});
+						}
+					}catch(e){
+						document.getElementById('sessiontimelineregion').scrollIntoView({block: "center", behavior: "smooth"});
+					}
 				}
 			}
 			google.visualization.events.addListener(blockingsTreeTable, 'select', blockingsTreeTableSelectHandler);
@@ -492,7 +501,16 @@
 				} else {
 					var sel = eventSessionsTable.getSelection();
 					drawSessionTimeLine(data.getValue(sel[0].row, 1));
-					document.getElementById('sessiontimelineregion').scrollIntoView({block: "center", behavior: "smooth"});
+					var qId = data.getValue(sel[0].row, 9);
+					try{
+						if ( Number(qId) !== 0){
+								showSQLText(qId);
+						}else{
+							document.getElementById('sessiontimelineregion').scrollIntoView({block: "center", behavior: "smooth"});
+						}
+					}catch(e){
+						document.getElementById('sessiontimelineregion').scrollIntoView({block: "center", behavior: "smooth"});
+					}
 				}
 			}
 			google.visualization.events.addListener(eventSessionsTable, 'select', eventSessionsTableSelectHandler);				
@@ -572,7 +590,25 @@
 			google.visualization.events.addListener(sessTimeLine, 'select', sqlidSelectHandler);                 
 			*/
 		}
-		//------SESSION TIMELINE		
+		//------SESSION TIMELINE	
+		//------SQL TEXT	
+		function getSQLText(qId) {
+			var sqlTextQuery = "select distinct qText from sqltexts_buffer where qId="+qId;
+			var	sqltext = getData(sqlTextQuery);
+			return sqltext;
+		}		
+		function showSQLText ( qId ) {
+			if( Number (qId) === 0 ){
+				return null;
+			}
+			document.getElementById('sqltextregion').innerHTML = '<span style="font-family: monospace; font-size: large;"><b>' +
+				qId +
+				'</b>:<br />'+
+				(getSQLText(String(qId)).replace(/\\n/g,'<br />').replace(/\\\'/g,"'")) +
+				+ '</span>';
+			document.getElementById('sqltextregion').scrollIntoView({block: "center", behavior: "smooth"});			
+		}
+		//------SQL TEXT	
     </script>
   </head>
   <body onLoad=''>
@@ -582,6 +618,7 @@
     <div id="blockingstreeregion"></div>
     <div id="eventsregion"></div>  	    
     <div id="eventsessionsregion"></div> 
+    <div id="sqltextregion"></div>
     <div id="sessiontimelineregion"></div> 	
   </body>
 </html>    

@@ -47,8 +47,9 @@ public class SessionsCollector implements Configurable {
             "coalesce(cast(cast(backend_xmin as text) as bigint),0) as backend_xmin " +
         "from pg_catalog.pg_stat_activity "+
         "where (" + 
-            "(coalesce(state,'-')<>'idle' and coalesce(wait_event,'-')<>'ClientRead') "+
-            "or state_change  > current_timestamp  - interval '"+SECONDSBETWEENSESSWAITSSNAPS+"' second"+
+            "not (coalesce(state,'-')='idle' and coalesce(wait_event,'-')='ClientRead')"+
+            " or "+
+            "(state_change  > current_timestamp  - interval '"+SECONDSBETWEENSESSWAITSSNAPS+"' second)"+
         ") and pid<>pg_backend_pid()"
         ;
     private static final String PGSESSWAITSQUERY15 = 
@@ -73,7 +74,7 @@ public class SessionsCollector implements Configurable {
             "coalesce(cast(cast(backend_xmin as text) as bigint),0) as backend_xmin " +
         "from pg_catalog.pg_stat_activity "+
         "where (" + 
-            "(coalesce(state,'-')<>'idle' and coalesce(wait_event,'-')<>'ClientRead') "+
+            "not (coalesce(state,'-')='idle' and coalesce(wait_event,'-')='ClientRead') "+
             "or state_change  > current_timestamp  - interval '"+SECONDSBETWEENSESSWAITSSNAPS+"' second"+
         ") and pid<>pg_backend_pid()"
         ;    
