@@ -30,9 +30,9 @@ public interface Configurable {
   public static final int THREADSYSTEM        = 2;
   public static final int THREADSQL           = 3;
   
-  public static final int SECONDSBETWEENSQLSNAPS            = 300;
+  public static final int SECONDSBETWEENSQLSNAPS            = 60;
   public static final int SECONDSBETWEENSESSSTATSSNAPS      = 30;
-  public static final int SECONDSBETWEENSESSWAITSSNAPS      = 10;
+  public static final int SECONDSBETWEENSESSWAITSSNAPS      = 5;
   public static final int SECONDSBETWEENSYSSTATSSNAPS       = 10;
   
   public static final Calendar MYTZCAL                        = Calendar.getInstance(TimeZone.getTimeZone("Europe/Moscow"));  

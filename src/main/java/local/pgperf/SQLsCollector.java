@@ -144,7 +144,7 @@ public class SQLsCollector implements Configurable {
         return outList;
     }    
     
-    private boolean collectSQLStats(PreparedStatement stmtData, PreparedStatement stmtReset) throws InterruptedException {
+    private boolean collectSQLStats(PreparedStatement stmtData/*, PreparedStatement stmtReset*/) throws InterruptedException {
             List[] sqlsRSs = new List [2];
             long ts = Instant.now().getEpochSecond();
             try {
@@ -170,8 +170,10 @@ public class SQLsCollector implements Configurable {
                         )
                 );                
                 stmtData.clearWarnings();
+                /*
                 stmtReset.execute();
                 stmtReset.clearWarnings();
+                */
             } catch (SQLException e) {
                 lg.LogError(DATEFORMAT.format(LocalDateTime.now()) + "\t" + dbConnectionString
                         + "\t" + "error processing sql stats!"
@@ -201,7 +203,7 @@ public class SQLsCollector implements Configurable {
         }
         while (!shutdown) {
             begints = System.currentTimeMillis();
-            shutdown = collectSQLStats(pgSQLsPreparedStatement,pgSQLsResetPreparedStatement);
+            shutdown = collectSQLStats(pgSQLsPreparedStatement/*,pgSQLsResetPreparedStatement*/);
             endts = System.currentTimeMillis();
             if (endts - begints < SECONDSBETWEENSQLSNAPS * 1000L) {
                 TimeUnit.SECONDS.sleep(

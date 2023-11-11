@@ -1,4 +1,4 @@
-var ckhURL = "http://localhost:8123/?user=pgmetrics&password=pgmetr&database=pgdb";
+var ckhURL = "http://work:8123/?user=pgmetrics&password=pgmetr&database=pgdb";
 function showload(){
 	document.getElementById("modalrg").innerHTML='<div id="spinner" class="modal"><div class="modal-content" align="center"><span class="sbl-circ"></span></div></div>';
 	document.getElementById("spinner").style.display="block";
@@ -10,10 +10,6 @@ function hideload(){
 		document.getElementById("modalrg").innerHTML='';					
 	}
 }     
-
-function test(){
-	alert("azaza");
-}
 
 function getDatefromSnapTime( ts ){
 	var out = new Date(

@@ -1,0 +1,278 @@
+<html>
+  <head>
+	<meta charset="utf-8">
+	<link rel="stylesheet" href="include.css">
+	<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+	<script type="text/javascript" src="include.js"></script>
+	<script type="text/javascript">
+		google.charts.load('current', {'packages': ['corechart']});
+		google.charts.load('current', {'packages': ['table']}); 
+		google.charts.setOnLoadCallback(drawChart);
+		//
+		var spanMinutes = 30;
+		var maxQueries = 100;
+		var minValue = 1;
+		//
+		//------SQL TEXT	
+		function getSQLText(qId) {
+			var sqlTextQuery = "select distinct qText from sqltexts_buffer where qId="+qId;
+			var	sqltext = getData(sqlTextQuery);
+			return sqltext;
+		}		
+		function showSQLText ( qId ) {
+			if( Number (qId) === 0 ){
+				return null;
+			}
+			document.getElementById('sqltextregion').innerHTML = '<span style="font-family: monospace; font-size: large;"><b>' +
+				qId +
+				'</b>:<br />'+
+				getSQLText(qId).replace(/\\n/g,'<br />').replace(/\\\'/g,"'").replace(/\\\'/g,"'") +
+				'</span>';
+			document.getElementById('sqltextregion').scrollIntoView({block: "center", behavior: "smooth"});			
+		}
+		//------SQL TEXT			
+		//
+		function preDraw() {
+			te = new Date();
+			ts = new Date(te.getTime() - 1000 * 60 * spanMinutes);
+			timeSpan1 = ts.getFullYear() + '-' +
+				("0" + (ts.getMonth() + 1)).slice(-2) + '-' + ("0" + ts.getDate()).slice(-2)
+				+ ' ' +
+				("0" + ts.getHours()).slice(-2) + ':' + ("0" + ts.getMinutes()).slice(-2) + ':' + ("0" + ts.getSeconds()).slice(-2)
+			;
+			timeSpan2 = te.getFullYear() + '-' +
+				("0" + (te.getMonth() + 1)).slice(-2) + '-' + ("0" + te.getDate()).slice(-2)
+				+ ' ' +
+				("0" + te.getHours()).slice(-2) + ':' + ("0" + te.getMinutes()).slice(-2) + ':' + ("0" + te.getSeconds()).slice(-2)
+			;
+		}
+		//
+		function drawChart(){
+			preDraw();
+			if(document.location.toString().indexOf('?') !== -1) {
+				var query = document.location.toString().replace(/^.*?\?/, '').replace(/#.*$/, '').split('&');
+				for(var i=0, l=query.length; i<l; i++) {
+					var aux = decodeURIComponent(query[i]).split('=');
+						$_GET[aux[0]] = aux[1];
+					}
+				metric = $_GET['metric'];
+			}else{
+				metric='calls';
+			}
+			var sS = document.getElementById("metrics");
+			for (var i=0; i< sS.options.length; i++){
+				if (sS.options[i].value === $_GET['metric']){
+					sS.options[i].selected=true;
+				}
+			}    			
+			drawSQLStatsChart();
+		}	        
+		//------------------------------------------------------
+        var ts;
+        var te;
+        var timeSpan1;
+        var timeSpan2;
+        var metric;
+        var $_GET = {};
+        var detailsQID;
+		//
+		var arrSQLDetailsColumns = [
+			"dbName", "userName", "isTopLevel", "plans", "calls", "rows", 
+			"totalPlanTime", "minPlanTime", "maxPlanTime", 
+			"totalExecTime", "minExecTime", "macExecTime", 
+			"sBlksHit", "sBlksRead", "sBlksWritten", 
+			"lBlksHit", "lBlksRead", "lBlksDirtied", "lBlksWritten", 
+			"tBlksRead", "tBlksWritten", 
+			"bReadTime", "bWriteTime", 
+			"tReadTime", "tWriteTime", 
+			"walRecords", "walFPI", "walBytes", 
+			"jFunctions", "jInlinings", "jOptimizations", "jEmissions", 
+			"jGenerationTime", "jInliningTime", "jOptimizationTime", "jEmissionTime"		
+		];
+		//
+		//------SQLs
+		function drawSQLStatsChart(){
+			var sqlStatsQuery = "select snapTime,qId,vl from  ( " +
+				"select snapTime,qId,"+metric+" vl " +
+				"from sqlstats_buffer sb " +
+				"where snapTime>='"+timeSpan1+"' and snapTime<='"+timeSpan2+"' and vl>=" + minValue +" "+
+				"order by snapTime " +
+				") order by snapTime asc";
+				//alert(sqlStatsQuery);
+			showload();
+			a_getData(sqlStatsQuery,drawSQLStatsChart_);		
+		}
+		function parseSQLStatsData(inputData) {
+			var dataLines = inputData.split(/[\n]+/);
+			var outData = [];
+			var tmpData = [];
+			var prevData = [];
+			var rowData = [];
+			var arrQIds = {};
+			var arrQIdsIdx = 1;
+			sqlsHeaderData = ['Timestamp'];
+			var idx;
+			for (var i = 0; i < dataLines.length; i++) {
+				if (dataLines[i].length > 0) {
+					rowData = dataLines[i].split(/[\t]+/);
+					if (typeof arrQIds[rowData[1]] === 'undefined') {
+						arrQIds[rowData[1]] = arrQIdsIdx++;
+						sqlsHeaderData.push(String(rowData[1]));
+					}
+				}
+			}
+			tmpIdx = 0;
+			tmpData[0] = [];
+			tmpData[0][0] = '1970-01-01 00:00:00';
+			for (var ti = 1; ti < sqlsHeaderData.length; ti++) {
+				tmpData[0][ti] = 0;
+			}				
+			prevIdx = 0;
+			prevData[0] = [];
+			prevData[0][0] = '1970-01-01 00:00:00';
+			for (var ti = 1; ti < sqlsHeaderData.length; ti++) {
+				prevData[0][ti] = 0;
+			}			
+			for (var i = 0; i < dataLines.length; i++) {
+				if (dataLines[i].length > 0) {
+					rowData = dataLines[i].split(/[\t]+/);
+					idx = Number(rowData[0].replace(/[:-\s]/g, ""));
+					if (typeof tmpData[idx] === 'undefined') {
+						//--
+						prevIdx = tmpIdx;
+						prevData[idx] = [];
+						prevData[idx][0] = '1970-01-01 00:00:00';
+						for (var ti = 1; ti < sqlsHeaderData.length; ti++) {
+							prevData[idx][ti] = tmpData[prevIdx][ti];
+						}					
+						//--						
+						tmpData[idx] = [];
+						tmpData[idx][0] = String(rowData[0]);
+						for (var ti = 1; ti < sqlsHeaderData.length; ti++) {
+							tmpData[idx][ti] = 0;
+						}	
+					}else{
+					}
+					tmpData[idx][arrQIds[rowData[1]]] = Number(rowData[2]);
+					if (prevIdx === 0){
+						prevData[idx][arrQIds[rowData[1]]] = Number(rowData[2]);
+					}
+					tmpIdx = idx;
+				}
+			}
+			outData.push(sqlsHeaderData);
+			tmpData.shift();
+			prevData.shift();
+			for (var ei in tmpData) {
+				for (var ti =1; ti< sqlsHeaderData.length; ti++){
+					tmpData[ei][ti] = Math.max(tmpData[ei][ti] - prevData[ei][ti],0);
+				}
+				outData.push(tmpData[ei]);
+			}
+			return outData;
+		}	
+		function drawSQLStatsChart_(inputdata) {              			
+			var drawRegion = "sqlstatsregion";
+			var data = google.visualization.arrayToDataTable(parseSQLStatsData(inputdata));
+			if (data.getNumberOfRows() === 0) {
+				hideload();
+				return;
+			}    
+			var options = {
+				title: 'SQL Statistics ('+metric+')',
+				width: 1800,
+				height: 500,
+				hAxis: {textPosition: 'bottom'},
+				vAxis: {minValue: 0, format: '####'},
+				//animation: {startup: 'true', duration: 300},
+				bars: 'vertical',
+				//orientation : 'vertical',
+				bar: {groupWidth: '95%'},
+				legend: {position: 'none'},
+				isStacked: true,
+				backgroundColor: {fill: 'transparent'}
+			};
+			var sqlStatsChart = new google.visualization.ColumnChart(document.getElementById(drawRegion));
+			sqlStatsChart.draw(data, options);
+			hideload();
+			function sqlStatsSelectHandler(e) {
+				if (sqlStatsChart.getSelection().length === 0) {
+				} else {
+					var sel = sqlStatsChart.getSelection();
+					var qId = data.getColumnLabel(sel[0].column);
+					try{
+						if ( Number(qId) !== 0){
+								showSQLText(qId);
+								drawSQLDetailsChart(data.getValue(sel[0].row, 0),qId);
+						}
+					}catch(e){
+					}
+				}
+			}
+			google.visualization.events.addListener(sqlStatsChart, 'select', sqlStatsSelectHandler);				
+		}		
+		//------SQLs	
+		//------SQLDetails
+		function drawSQLDetailsChart(snapTime,qId){
+			var sqlDetailsQuery = "select dbName, userName, isTopLevel, plans, calls, rows,"+
+				"totalPlanTime, minPlanTime, maxPlanTime, totalExecTime, minExecTime, macExecTime,"+
+				"sBlksHit, sBlksRead, sBlksWritten, lBlksHit, lBlksRead, lBlksDirtied, lBlksWritten, tBlksRead, tBlksWritten, bReadTime, bWriteTime, tReadTime, tWriteTime,"+
+				"walRecords, walFPI, walBytes,"+
+				"jFunctions, jInlinings, jOptimizations, jEmissions, jGenerationTime, jInliningTime, jOptimizationTime, jEmissionTime "+
+				"from sqlstats_buffer where snapTime='"+snapTime+"' and qId="+qId;
+			showload();
+			a_getData(sqlDetailsQuery,drawSQLDetailsChart_);		
+		}
+		function parseSQLDetailsData(inputData) {
+			var dataLines = inputData.split(/[\n]+/);
+			var outData = [];
+			var tmpData = [];
+			var rowData = [];	
+			for (var i = 0; i < dataLines.length; i++) {
+				if (dataLines[i].length > 0) {
+					rowData = dataLines[i].split(/[\t]+/);
+					tmpData[i] = [];
+					for (var j = 0; j < arrSQLDetailsColumns.length; j++) {
+						tmpData[i][j] = rowData[j];
+					}
+				}
+			}
+			outData.push(arrSQLDetailsColumns);
+			for (var i = 0; i < tmpData.length; i++) {
+				outData.push(tmpData[i]);
+			}
+			return outData;
+		}	
+		function drawSQLDetailsChart_(inputdata) { 
+			var drawRegion = "sqldetailsregion";
+			var data = google.visualization.arrayToDataTable(parseSQLDetailsData(inputdata));
+			var options = {
+				title: "Details for query ID ",
+				width: '100%',
+				//height: '100%',
+				allowHtml: true,
+				showRowNumber: false,
+				backgroundColor: {fill: 'transparent'},
+				cssClassNames: { tableCell: 'sc' }
+			};
+			var sqlDetailsTable = new google.visualization.Table(document.getElementById(drawRegion));
+			sqlDetailsTable.draw(data, options);
+			hideload();			
+		}				
+		//------SQLDetails	
+    </script>
+  </head>
+  <body onLoad=''>
+	<div id="modalrg"></div>  
+	<div align="center">Order by metric:&nbsp;
+		<select id="metrics" onchange="window.location='queries.html?metric='+this.options[this.selectedIndex].value">
+			<option>calls</option>
+			<option>plans</option>
+			<option>rows</option>
+		</select>
+	</div>	
+    <div id="sqlstatsregion"></div> 
+    <div id="sqldetailsregion"></div>   
+    <div id="sqltextregion"></div>  
+  </body>
+</html>    
