@@ -569,26 +569,18 @@
 			var sessTimeLineTable = new google.visualization.Table(document.getElementById(drawRegion));
 			sessTimeLineTable.draw(data, options);
 			hideload();
-			/*
 			//--SESSION TIMELINE EVENTS
-			function sqlidSelectHandler(e) {
-				if (sessTimeLine.getSelection().length === 0) {
-					if (typeof sessTimeLine !== 'undefined') {
+			function queryIdSelectHandler(e) {
+				if (sessTimeLineTable.getSelection().length === 0) {
+					if (typeof sessTimeLineTable !== 'undefined') {
 						document.getElementById('sqltextregion').innerHTML='';
 					}
 				} else {
-					var sel = sessTimeLine.getSelection();
-					document.getElementById('sqltextregion').innerHTML = '<span style="font-family: monospace; font-size: large;"><b>'+
-						data.getValue(sel[0].row, 1)+
-						'</b>:<br />'+
-						getSQLText(data.getValue(sel[0].row, 1)).replace(/\\n/g,'<br />').replace(/\\\'/g,"'")+
-						'</span>'
-					;
-					document.getElementById('sqltextregion').scrollIntoView({block: "center", behavior: "smooth"});
+					var sel = sessTimeLineTable.getSelection();
+					showSQLText(data.getValue(sel[0].row, 12));
 				}
 			}
-			google.visualization.events.addListener(sessTimeLine, 'select', sqlidSelectHandler);                 
-			*/
+			google.visualization.events.addListener(sessTimeLineTable, 'select', queryIdSelectHandler);                
 		}
 		//------SESSION TIMELINE	
 		//------SQL TEXT	
@@ -602,10 +594,10 @@
 				return null;
 			}
 			document.getElementById('sqltextregion').innerHTML = '<span style="font-family: monospace; font-size: large;"><b>' +
-				qId +
+				String(qId) +
 				'</b>:<br />'+
 				(getSQLText(String(qId)).replace(/\\n/g,'<br />').replace(/\\\'/g,"'")) +
-				+ '</span>';
+				'</span>';
 			document.getElementById('sqltextregion').scrollIntoView({block: "center", behavior: "smooth"});			
 		}
 		//------SQL TEXT	
